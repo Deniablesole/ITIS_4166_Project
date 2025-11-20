@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      String   @default("user")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  reviews    Review[]
+  watchlists Watchlist[]
+
+  @@map("users")
+}
+
+model Movie {
+  id            Int      @id @default(autoincrement())
+  title         String
+  director      String
+  releaseYear   Int      @map("release_year")
+  genre         String
+  duration      Int
+  description   String   @db.Text
+  averageRating Float?   @map("average_rating")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  reviews         Review[]
+  watchlistMovies WatchlistMovie[]
+
+  @@map("movies")
+}
+
+model Review {
+  id                Int      @id @default(autoincrement())
+  userId            Int      @map("user_id")
+  movieId           Int      @map("movie_id")
+  rating            Float
+  reviewDescription String   @map("review_description") @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
+}
+
+model Watchlist {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  name        String
+  description String?  @db.Text
+  isPublic    Boolean  @default(false) @map("is_public")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watchlistMovies WatchlistMovie[]
+
+  @@map("watchlists")
+}
+
+model WatchlistMovie {
+  watchlistId Int      @map("watchlist_id")
+  movieId     Int      @map("movie_id")
+  addedAt     DateTime @default(now()) @map("added_at")
+
+  watchlist Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  movie     Movie     @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@id([watchlistId, movieId])
+  @@map("watchlist_movies")
+}
