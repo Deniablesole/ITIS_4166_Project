@@ -1,8 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import watchlistRoutes from './routes/watchlists.js';
-import userRoutes from './routes/users.js';
 import userRoutes from './routes/users.js';
 import watchlistRoutes from './routes/watchlists.js';
 
@@ -26,7 +24,7 @@ app.use((req, res, next) => {
   next(err);
 });
 
-// Error handling middleware for other errors in the application. It logs the error stack and sends a JSON response with the error message.
+// Error handler
 app.use((err, req, res, next) => {
   console.log(err.stack);
   if (!err.status) {
