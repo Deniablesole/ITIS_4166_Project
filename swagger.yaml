@@ -7,9 +7,9 @@ info:
     name: MovieWatch Team
 
 servers:
-  - url: http://localhost:3000
+  - url: http://localhost:3000/api
     description: Development server
-  - url: https://itis-4166-project.onrender.com
+  - url: https://itis-4166-project.onrender.com/api
     description: Production server
 
 components:
