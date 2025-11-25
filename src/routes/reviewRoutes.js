@@ -1,9 +1,18 @@
 import express from 'express';
 import { reviewController } from '../controllers/reviewController.js';
-import { authenticate, validateRequest } from '../utils/auth.js'; //auth.js needs to be moved to middleware after merge
+import { authenticate } from '../middleware/auth.js';
 import { reviewValidators, idParamValidator } from '../utils/validators.js';
 
 const router = express.Router();
+
+// Validation middleware
+const validateRequest = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  next();
+};
 
 // Public routes
 router.get('/', reviewController.getAllReviews);
