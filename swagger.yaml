@@ -1,0 +1,787 @@
+openapi: 3.0.0
+info:
+  title: MovieWatch API
+  description: A REST API for discovering, reviewing, and organizing movies
+  version: 1.0.0
+  contact:
+    name: MovieWatch Team
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://your-app.onrender.com/api
+    description: Production server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authorization token
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [user, admin]
+        createdAt:
+          type: string
+          format: date-time
+
+    Movie:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        director:
+          type: string
+        releaseYear:
+          type: integer
+        genre:
+          type: string
+        duration:
+          type: integer
+        description:
+          type: string
+        averageRating:
+          type: number
+          format: float
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        movieId:
+          type: integer
+        rating:
+          type: number
+          format: float
+        reviewDescription:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Watchlist:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        isPublic:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+paths:
+  /users/register:
+    post:
+      tags:
+        - Users
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error or username/email already exists
+
+  /users/login:
+    post:
+      tags:
+        - Users
+      summary: Login a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        '401':
+          description: Invalid credentials
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Get all users (Admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID (Owner or Admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: User not found
+
+    put:
+      tags:
+        - Users
+      summary: Update user (Owner or Admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: User updated successfully
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: User not found
+
+    delete:
+      tags:
+        - Users
+      summary: Delete user (Owner or Admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: User deleted successfully
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: User not found
+
+  /movies:
+    get:
+      tags:
+        - Movies
+      summary: Get all movies (Public)
+      parameters:
+        - name: title
+          in: query
+          schema:
+            type: string
+        - name: director
+          in: query
+          schema:
+            type: string
+        - name: genre
+          in: query
+          schema:
+            type: string
+        - name: releaseYear
+          in: query
+          schema:
+            type: integer
+        - name: minRating
+          in: query
+          schema:
+            type: number
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: List of movies with pagination
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  movies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Movie'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      pages:
+                        type: integer
+
+    post:
+      tags:
+        - Movies
+      summary: Create a new movie (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - director
+                - genre
+                - releaseYear
+                - duration
+                - description
+              properties:
+                title:
+                  type: string
+                director:
+                  type: string
+                genre:
+                  type: string
+                releaseYear:
+                  type: integer
+                duration:
+                  type: integer
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Movie created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+
+  /movies/{id}:
+    get:
+      tags:
+        - Movies
+      summary: Get movie by ID (Public)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Movie details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '404':
+          description: Movie not found
+
+    put:
+      tags:
+        - Movies
+      summary: Update movie (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                director:
+                  type: string
+                genre:
+                  type: string
+                releaseYear:
+                  type: integer
+                duration:
+                  type: integer
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Movie updated successfully
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Movie not found
+
+    delete:
+      tags:
+        - Movies
+      summary: Delete movie (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Movie deleted successfully
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Movie not found
+
+  /reviews:
+    get:
+      tags:
+        - Reviews
+      summary: Get all reviews (Public)
+      parameters:
+        - name: movieId
+          in: query
+          schema:
+            type: integer
+        - name: userId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Review'
+
+    post:
+      tags:
+        - Reviews
+      summary: Create a review (Authenticated)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - movieId
+                - rating
+                - reviewDescription
+              properties:
+                movieId:
+                  type: integer
+                rating:
+                  type: number
+                  minimum: 0
+                  maximum: 10
+                reviewDescription:
+                  type: string
+      responses:
+        '201':
+          description: Review created successfully
+        '400':
+          description: Already reviewed or validation error
+        '401':
+          description: Unauthorized
+
+  /reviews/{id}:
+    put:
+      tags:
+        - Reviews
+      summary: Update review (Owner)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: number
+                  minimum: 0
+                  maximum: 10
+                reviewDescription:
+                  type: string
+      responses:
+        '200':
+          description: Review updated successfully
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Review not found
+
+    delete:
+      tags:
+        - Reviews
+      summary: Delete review (Owner or Admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Review deleted successfully
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Review not found
+
+  /watchlists:
+    get:
+      tags:
+        - Watchlists
+      summary: Get all user's watchlists (Authenticated)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of watchlists
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Watchlist'
+        '401':
+          description: Unauthorized
+
+    post:
+      tags:
+        - Watchlists
+      summary: Create a watchlist (Authenticated)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                isPublic:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Watchlist created successfully
+        '401':
+          description: Unauthorized
+
+  /watchlists/{id}:
+    get:
+      tags:
+        - Watchlists
+      summary: Get watchlist by ID (Public if isPublic=true, Owner otherwise)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Watchlist details with movies
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Watchlist'
+                  - type: object
+                    properties:
+                      movies:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            title:
+                              type: string
+        '403':
+          description: Watchlist is private
+        '404':
+          description: Watchlist not found
+
+    put:
+      tags:
+        - Watchlists
+      summary: Update watchlist (Owner)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                isPublic:
+                  type: boolean
+      responses:
+        '200':
+          description: Watchlist updated successfully
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Watchlist not found
+
+    delete:
+      tags:
+        - Watchlists
+      summary: Delete watchlist (Owner or Admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Watchlist deleted successfully
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Watchlist not found
+
+  /watchlists/{id}/movies:
+    post:
+      tags:
+        - Watchlists
+      summary: Add movie to watchlist (Owner)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - movieId
+              properties:
+                movieId:
+                  type: integer
+      responses:
+        '201':
+          description: Movie added to watchlist
+        '400':
+          description: Movie already in watchlist
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Watchlist or movie not found
+
+  /watchlists/{watchlistId}/movies/{movieId}:
+    delete:
+      tags:
+        - Watchlists
+      summary: Remove movie from watchlist (Owner or Admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: watchlistId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: movieId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Movie removed from watchlist
+        '401':
+          description: Unauthorized
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Watchlist or movie not found
